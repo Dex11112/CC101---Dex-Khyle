@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Block Blast — Full Playable (Single File)</title>
+<style>
+  :root{
+    --cell:44px;
+    --cols:9;
+    --rows:10;
+    --gap:6px;
+    --bg-default: linear-gradient(135deg,#071427 0%,#001f2f 60%,#001219 100%);
+    --accent: #00f6ff;
+  }
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial;background:var(--bg-default);color:#dff9ff;-webkit-font-smoothing:antialiased;}
+  /* layout */
+  .wrap{display:flex;gap:18px;align-items:flex-start;justify-content:center;padding:18px;min-height:100vh;box-sizing:border-box;}
+  .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.06)); padding:16px; border-radius:12px; box-shadow:0 30px 80px rgba(0,0,0,0.6); width:740px; max-width:95vw;}
+  .hud{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .title{font-weight:800;font-size:20px;color:white;display:flex;gap:8px;align-items:center}
+  .chips{display:flex;gap:8px;align-items:center}
+  .chip{background:rgba(255,255,255,0.03); padding:8px 10px; border-radius:10px; display:flex;flex-direction:column;align-items:flex-start}
+  .chip .lbl{font-size:11px;color:#aef6ff}
+  .chip .val{font-weight:800;color:#fff}
+
+  /* board */
+  .board-wrap{margin:10px auto; width: calc(var(--cols) * var(--cell)); height: calc(var(--rows) * var(--cell)); position:relative; border-radius:12px; padding:6px; box-sizing:border-box;}
+  .grid{position:relative; width:100%; height:100%; border-radius:8px; background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.04)); overflow:hidden; box-shadow: inset 0 8px 30px rgba(0,0,0,0.6);}
+  .tile{position:absolute; width:calc(var(--cell) - 8px); height:calc(var(--cell) - 8px); border-radius:8px; transition:left 140ms ease, top 140ms ease, transform 140ms ease, opacity 160ms ease; display:flex;align-items:center;justify-content:center; z-index:2;}
+  .tile .inner{width:100%;height:100%;border-radius:8px;box-shadow: inset 0 -6px 14px rgba(0,0,0,0.28);}
+  .tile.glow{transform:scale(1.06); filter:brightness(1.08) drop-shadow(0 0 20px rgba(0,246,255,0.06));}
+
+  /* neon colors */
+  .c0 .inner{background:linear-gradient(180deg,#ff6b6b,#ff3b3b); box-shadow: 0 0 14px rgba(255,59,59,0.32);}
+  .c1 .inner{background:linear-gradient(180deg,#ffd166,#ffb020); box-shadow: 0 0 14px rgba(255,170,0,0.22);}
+  .c2 .inner{background:linear-gradient(180deg,#8df7b4,#2ee07b); box-shadow: 0 0 14px rgba(46,224,123,0.22);}
+  .c3 .inner{background:linear-gradient(180deg,#9bd6ff,#42a7ff); box-shadow: 0 0 14px rgba(66,167,255,0.28);}
+  .c4 .inner{background:linear-gradient(180deg,#caa3ff,#7d5bff); box-shadow: 0 0 14px rgba(125,91,255,0.22);}
+  .c5 .inner{background:linear-gradient(180deg,#ff92d1,#ff4db3); box-shadow: 0 0 14px rgba(255,77,179,0.22);}
+
+  /* preview / controls */
+  .controls{display:flex;align-items:center;gap:12px;margin-top:12px;justify-content:space-between}
+  .preview{display:flex;gap:12px;align-items:center}
+  .slot{width:calc(var(--cell)*3.2);height:calc(var(--cell)*2.4);background:rgba(255,255,255,0.02);border-radius:10px;display:flex;align-items:center;justify-content:center;position:relative;overflow:visible}
+  .piece{position:absolute; touch-action:none; cursor:grab; user-select:none; z-index:60;}
+  .rotateBtn{position:absolute; right:6px; bottom:6px; background:rgba(0,0,0,0.35); color:var(--accent); border-radius:8px; padding:6px 8px; font-weight:700; border:1px solid rgba(255,255,255,0.03); cursor:pointer; font-size:12px}
+
+  .ghost{position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; opacity:0.32; z-index:3}
+
+  /* right column */
+  .side{width:300px; color:#dff9ff}
+  .card{background:rgba(255,255,255,0.02); padding:12px; border-radius:10px; margin-bottom:12px}
+  .btn{background:linear-gradient(180deg,#00e6ff,#00b3cc); color:#012; padding:8px 12px; border-radius:8px; border:none; cursor:pointer; font-weight:800}
+  .btn.secondary{background:transparent;color:#dff9ff;border:1px solid rgba(255,255,255,0.06)}
+
+  /* overlays */
+  .overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:9999}
+  .dialog{background:linear-gradient(180deg,#031a25,#071834);padding:18px;border-radius:12px;width:min(720px,92%);color:#dff9ff}
+  .flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;mix-blend-mode:screen;z-index:9998}
+
+  @media(max-width:900px){ .wrap{flex-direction:column;align-items:center} .side{width:95%} .panel{width:95%} }
+</style>
+</head>
+<body>
+<!-- Start overlay: must click to allow audio / user gesture and initialize -->
+<div id="startOverlay" class="overlay">
+  <div class="dialog" style="text-align:center">
+    <div style="font-size:22px;font-weight:900;color:var(--accent);margin-bottom:8px">BLOCK BLAST — NEON</div>
+    <div style="margin-bottom:12px">Tap / Click to Start — drag pieces from "Next" to the board. Pieces already show color in the preview.</div>
+    <div style="display:flex;gap:8px;justify-content:center">
+      <button id="startBtn" class="btn">Start Game</button>
+      <button id="startNoAudio" class="btn secondary">Start (No Sound)</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap" id="gameRoot" style="display:none">
+  <div class="panel">
+    <div class="hud">
+      <div class="title">BLOCK BLAST <span style="font-size:12px;color:var(--accent);font-weight:800">NEON</span></div>
+      <div class="chips">
+        <div class="chip"><div class="lbl">Score</div><div class="val" id="scoreVal">0</div></div>
+        <div class="chip"><div class="lbl">Coins</div><div class="val" id="coinsVal">0</div></div>
+        <div class="chip"><div class="lbl">Best</div><div class="val" id="bestVal">0</div></div>
+      </div>
+    </div>
+
+    <div class="board-wrap">
+      <div id="grid" class="grid"></div>
+      <div id="particles" style="position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:8"></div>
+    </div>
+
+    <div class="controls">
+      <div style="display:flex;flex-direction:column">
+        <div style="font-size:13px;color:#aef8ff;margin-bottom:6px">Next</div>
+        <div class="preview" id="preview"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button id="rotateAll" class="btn secondary">Rotate</button>
+        <button id="restartBtn" class="btn">Restart</button>
+        <button id="storeBtn" class="btn">Store</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="card">
+      <div style="font-weight:800;margin-bottom:8px">How to play</div>
+      <div style="font-size:13px;color:#bff6ff">
+        Drag a colored piece from preview and drop it into the grid. If the whole row or column becomes filled, it clears.
+        Earn coins when clearing lines, unlock backgrounds in the Store. Chain clears quickly to trigger lightning streaks.
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:800;margin-bottom:8px">Top Scores</div>
+      <div id="leaderboard" style="font-size:13px"></div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:800;margin-bottom:8px">Debug / Test</div>
+      <div style="display:flex;gap:8px"><button id="mockBuy" class="btn">+100 Coins</button><button id="clearSave" class="btn secondary">Clear Save</button></div>
+      <div style="font-size:12px;margin-top:8px;color:#bfeff8">Tip: rotate preview pieces with the small rotate button per-slot or "Rotate" button.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Store modal -->
+<div id="storeModal" class="overlay" style="display:none">
+  <div class="dialog">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="font-weight:900">Store & Backgrounds</div>
+      <div><button id="closeStore" class="btn secondary">Close</button></div>
+    </div>
+    <div id="storeGrid" style="display:flex;gap:12px;flex-wrap:wrap"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px">
+      <button id="mockBuyStore" class="btn">Mock Buy +200c</button>
+    </div>
+  </div>
+</div>
+
+<!-- Game Over / Save Name -->
+<div id="gameOverModal" class="overlay" style="display:none">
+  <div class="dialog" style="width:360px">
+    <div style="font-size:18px;font-weight:900;margin-bottom:8px">Game Over</div>
+    <div style="margin-bottom:8px">Your Score: <span id="finalScore">0</span></div>
+    <input id="playerName" placeholder="Enter name to save top score" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);margin-bottom:12px;color:#001"/>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button id="saveScoreBtn" class="btn">Save</button>
+      <button id="skipSaveBtn" class="btn secondary">Skip</button>
+    </div>
+  </div>
+</div>
+
+<div id="flash" class="flash"></div>
+
+<script>
+/*
+  Block Blast — Full Playable Single HTML
+  - Click Start (or Start No Sound) to initialize the game (audio requires user gesture).
+  - Playable: drag + drop preview pieces, rotate pieces, clear full rows/cols.
+  - Coins, Store (mock), Leaderboard, Save/Load via localStorage.
+  - Designed to run locally in modern browsers (Chrome / Edge / Firefox / Mobile).
+*/
+
+/* CONFIG */
+const COLS = 9, ROWS = 10;
+const CELL = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--cell')) || 44;
+const PREVIEW_COUNT = 3;
+const COLORS = 6;
+const INITIAL_FILL_PROB = 0.28;
+const STREAK_WINDOW = 3.0; // seconds
+const STORE_ITEMS = [
+  { id: 'neon_free', name: 'Neon Aqua', cost: 0, css: 'linear-gradient(135deg,#071427,#001f2f)' , unlocked:true },
+  { id: 'galaxy', name: 'Galaxy', cost: 120, css: 'linear-gradient(135deg,#04102b,#2b1148)' },
+  { id: 'sunset', name: 'Sunset', cost: 200, css: 'linear-gradient(135deg,#32174d,#ff6b6b)' }
+];
+
+/* STATE */
+let grid = []; // [row][col] -> {el, color}
+let preview = []; // [{shape, color}]
+let score = 0, coins = 50, best = 0;
+let streakCount = 0, lastClearTime = -999;
+let audioCtx = null, soundEnabled = true;
+
+/* DOM refs */
+const startOverlay = document.getElementById('startOverlay');
+const startBtn = document.getElementById('startBtn');
+const startNoAudioBtn = document.getElementById('startNoAudio');
+const gameRoot = document.getElementById('gameRoot');
+const gridEl = document.getElementById('grid');
+const previewEl = document.getElementById('preview');
+const particlesEl = document.getElementById('particles');
+const scoreVal = document.getElementById('scoreVal');
+const coinsVal = document.getElementById('coinsVal');
+const bestVal = document.getElementById('bestVal');
+const leaderboardEl = document.getElementById('leaderboard');
+
+const storeModal = document.getElementById('storeModal');
+const storeGrid = document.getElementById('storeGrid');
+const storeBtn = document.getElementById('storeBtn');
+const closeStore = document.getElementById('closeStore');
+const mockBuyStore = document.getElementById('mockBuyStore');
+
+const gameOverModal = document.getElementById('gameOverModal');
+const finalScoreEl = document.getElementById('finalScore');
+const saveScoreBtn = document.getElementById('saveScoreBtn');
+const skipSaveBtn = document.getElementById('skipSaveBtn');
+const playerNameInput = document.getElementById('playerName');
+
+const mockBuy = document.getElementById('mockBuy');
+const clearSaveBtn = document.getElementById('clearSave');
+const restartBtn = document.getElementById('restartBtn');
+const rotateAllBtn = document.getElementById('rotateAll');
+
+/* AUDIO helper (simple synth SFX) */
+function initAudio(){
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(Ctx) audioCtx = new Ctx();
+  }catch(e){ audioCtx = null; }
+}
+function sfx(freq=440, type='sine', dur=0.08, vol=0.06){
+  if(!soundEnabled || !audioCtx) return;
+  try{
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.value = vol;
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
+    o.stop(audioCtx.currentTime + dur + 0.02);
+  }catch(e){ /* ignore audio errors */ }
+}
+
+/* SHAPES */
+const SHAPES = [
+  [{x:0,y:0}],
+  [{x:0,y:0},{x:1,y:0}],
+  [{x:0,y:0},{x:1,y:0},{x:2,y:0}],
+  [{x:0,y:0},{x:0,y:1}],
+  [{x:0,y:0},{x:0,y:1},{x:0,y:2}],
+  [{x:0,y:0},{x:1,y:0},{x:0,y:1},{x:1,y:1}],
+  [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:1,y:1}],
+  [{x:0,y:0},{x:1,y:0},{x:1,y:1}],
+  [{x:0,y:0},{x:1,y:0},{x:2,y:0},{x:3,y:0}],
+];
+
+function cloneShape(s){ return s.map(c=>({x:c.x,y:c.y})); }
+function randShape(){ return cloneShape(SHAPES[Math.floor(Math.random()*SHAPES.length)]); }
+function randColor(){ return Math.floor(Math.random()*COLORS); }
+function rotate90(shape){
+  // rotate clockwise: (x,y) -> (y, -x), then normalize to min 0
+  const r = shape.map(c=>({x:c.y, y:-c.x}));
+  const minX = Math.min(...r.map(p=>p.x)), minY = Math.min(...r.map(p=>p.y));
+  r.forEach(p=>{ p.x -= minX; p.y -= minY; });
+  return r;
+}
+
+/* GRID helpers */
+function initGrid(prefill=true){
+  grid = Array.from({length: ROWS}, ()=> Array(COLS).fill(null));
+  gridEl.innerHTML = '';
+  gridEl.style.width = (COLS*CELL) + 'px';
+  gridEl.style.height = (ROWS*CELL) + 'px';
+
+  if(prefill){
+    for(let y=0;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        if(Math.random() < INITIAL_FILL_PROB){
+          const color = randColor();
+          createTile(x,y,color);
+        }
+      }
+    }
+    // prevent starting with any full row/col
+    for(let y=0;y<ROWS;y++){
+      if(grid[y].every(cell=>cell)) removeGridTile(Math.floor(Math.random()*COLS), y);
+    }
+    for(let x=0;x<COLS;x++){
+      let full=true; for(let y=0;y<ROWS;y++) if(!grid[y][x]) { full=false; break; }
+      if(full) removeGridTile(x, Math.floor(Math.random()*ROWS));
+    }
+  }
+}
+
+function createTile(gx,gy,color){
+  const el = document.createElement('div');
+  el.className = 'tile c'+color;
+  el.style.width = (CELL - 8) + 'px';
+  el.style.height = (CELL - 8) + 'px';
+  el.style.left = (gx*CELL) + 'px';
+  el.style.top  = ((ROWS-1-gy)*CELL) + 'px';
+  const inner = document.createElement('div'); inner.className='inner';
+  el.appendChild(inner);
+  gridEl.appendChild(el);
+  grid[gy][gx] = { el, color };
+  // small pop
+  requestAnimationFrame(()=>{ el.style.transform='scale(1.04)'; setTimeout(()=>el.style.transform='scale(1)',120); });
+  return el;
+}
+
+function removeGridTile(gx,gy){
+  const entry = grid[gy][gx];
+  if(!entry) return;
+  if(entry.el) entry.el.remove();
+  grid[gy][gx] = null;
+}
+
+function canPlace(shape, ox, oy){
+  for(const c of shape){
+    const gx = ox + c.x, gy = oy + c.y;
+    if(gx < 0 || gx >= COLS || gy < 0 || gy >= ROWS) return false;
+    if(grid[gy][gx]) return false;
+  }
+  return true;
+}
+
+/* PLACE & CLEAR */
+function placeShape(shape, ox, oy, color){
+  const placed = [];
+  for(const c of shape){
+    createTile(ox + c.x, oy + c.y, color);
+    placed.push({x: ox + c.x, y: oy + c.y});
+  }
+  sfx(640, 'sawtooth', 0.06, 0.06);
+  return placed;
+}
+
+function checkAndClear(){
+  const clearedRows = [], clearedCols = [];
+  for(let y=0;y<ROWS;y++){
+    let full = true;
+    for(let x=0;x<COLS;x++) if(!grid[y][x]) { full=false; break; }
+    if(full) clearedRows.push(y);
+  }
+  for(let x=0;x<COLS;x++){
+    let full = true;
+    for(let y=0;y<ROWS;y++) if(!grid[y][x]) { full=false; break; }
+    if(full) clearedCols.push(x);
+  }
+  const total = clearedRows.length + clearedCols.length;
+  if(total === 0) return { total:0 };
+
+  const removedPoints = [];
+  // remove rows (with animation) and drop above down
+  for(const ry of clearedRows){
+    for(let x=0;x<COLS;x++){
+      const entry = grid[ry][x];
+      if(entry && entry.el){
+        entry.el.style.transition = 'transform 320ms cubic-bezier(.2,.9,.2,1), opacity 220ms';
+        entry.el.style.transform = 'scale(0.2) translateY(12px)';
+        entry.el.style.opacity = '0';
+        removedPoints.push({x, y: ry});
+        setTimeout(()=> entry.el.remove(), 320);
+      }
+      grid[ry][x] = null;
+    }
+    for(let y=ry+1;y<ROWS;y++){
+      for(let x=0;x<COLS;x++){
+        const e = grid[y][x];
+        grid[y-1][x] = e;
+        if(e && e.el) e.el.style.top = ((ROWS-1-(y-1))*CELL) + 'px';
+        grid[y][x] = null;
+      }
+    }
+  }
+
+  // remove columns and shift left
+  for(const cx of clearedCols){
+    for(let y=0;y<ROWS;y++){
+      const entry = grid[y][cx];
+      if(entry && entry.el){
+        entry.el.style.transition = 'transform 320ms cubic-bezier(.2,.9,.2,1), opacity 220ms';
+        entry.el.style.transform = 'scale(0.2) translateX(12px)';
+        entry.el.style.opacity = '0';
+        removedPoints.push({x: cx, y});
+        setTimeout(()=> entry.el.remove(), 320);
+      }
+      grid[y][cx] = null;
+    }
+    for(let x=cx+1;x<COLS;x++){
+      for(let y=0;y<ROWS;y++){
+        const e = grid[y][x];
+        grid[y][x-1] = e;
+        if(e && e.el) e.el.style.left = ((x-1)*CELL) + 'px';
+        grid[y][x] = null;
+      }
+    }
+  }
+
+  makeParticleBurst(removedPoints);
+  return { total, rows: clearedRows, cols: clearedCols };
+}
+
+/* PARTICLES */
+function makeParticleBurst(positions){
+  // create small bursts. positions are objects {x,y} in grid coords
+  if(!positions || positions.length === 0) return;
+  positions.forEach(p => {
+    const cx = (p.x + 0.5) * CELL;
+    const cy = (ROWS - 1 - p.y + 0.5) * CELL;
+    const count = 16;
+    for(let i=0;i<count;i++){
+      const dot = document.createElement('div');
+      dot.style.position='absolute';
+      dot.style.left = cx + 'px';
+      dot.style.top  = cy + 'px';
+      dot.style.width = '8px'; dot.style.height='8px';
+      dot.style.borderRadius = '50%';
+      dot.style.background = 'rgba(255,255,255,0.9)';
+      dot.style.pointerEvents = 'none';
+      dot.style.zIndex = 110;
+      particlesEl.appendChild(dot);
+      const angle = Math.random()*Math.PI*2;
+      const dist = 20 + Math.random()*60;
+      const nx = Math.cos(angle)*dist, ny = Math.sin(angle)*dist;
+      dot.animate([
+        { transform: `translate(-50%,-50%) translate(0px,0px) scale(1)`, opacity: 1 },
+        { transform: `translate(-50%,-50%) translate(${nx}px,${ny}px) scale(0.3)`, opacity: 0 }
+      ], { duration: 520 + Math.random()*360, easing: 'cubic-bezier(.2,.9,.2,1)' });
+      setTimeout(()=> dot.remove(), 1000);
+    }
+  });
+}
+
+/* PREVIEW & DRAG */
+function initPreview(){
+  preview = [];
+  for(let i=0;i<PREVIEW_COUNT;i++) preview.push({ shape: randShape(), color: randColor() });
+}
+
+function renderPreview(){
+  previewEl.innerHTML = '';
+  preview.forEach((p, idx) => {
+    const slot = document.createElement('div'); slot.className = 'slot';
+    const piece = document.createElement('div'); piece.className = 'piece';
+    // bounding box
+    let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+    p.shape.forEach(c=>{ minX=Math.min(minX,c.x); minY=Math.min(minY,c.y); maxX=Math.max(maxX,c.x); maxY=Math.max(maxY,c.y); });
+    const w = (maxX-minX+1)*CELL, h = (maxY-minY+1)*CELL;
+    piece.style.width = w + 'px'; piece.style.height = h + 'px';
+    piece.style.left = '50%'; piece.style.top = '50%'; piece.style.transform = 'translate(-50%,-50%)';
+    piece.dataset.index = idx;
+    // tiles drawn with same piece color so unplaced pieces show their color
+    p.shape.forEach(c => {
+      const t = document.createElement('div'); t.className = 'tile c' + p.color;
+      t.style.left = ((c.x - minX) * CELL) + 'px';
+      t.style.top  = ((maxY - c.y) * CELL) + 'px';
+      t.style.width = (CELL - 8) + 'px'; t.style.height = (CELL - 8) + 'px';
+      piece.appendChild(t);
+    });
+    // rotate button
+    const rot = document.createElement('button'); rot.className = 'rotateBtn'; rot.textContent = '⤾';
+    rot.title = 'Rotate piece';
+    rot.addEventListener('click', ev => { ev.stopPropagation(); preview[idx].shape = rotate90(preview[idx].shape); renderPreview(); });
+    slot.appendChild(piece); slot.appendChild(rot);
+    previewEl.appendChild(slot);
+    attachDrag(piece, idx);
+  });
+}
+
+function attachDrag(pieceEl, previewIndex){
+  let dragging = false, offsetX = 0, offsetY = 0, ghost = null;
+  const index = previewIndex;
+  pieceEl.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    dragging = true;
+    try{ pieceEl.setPointerCapture(e.pointerId); }catch(_){}
+    const rect = pieceEl.getBoundingClientRect();
+    offsetX = e.clientX - rect.left; offsetY = e.clientY - rect.top;
+    pieceEl.style.position = 'fixed';
+    pieceEl.style.left = (e.clientX - offsetX) + 'px';
+    pieceEl.style.top = (e.clientY - offsetY) + 'px';
+    pieceEl.style.transform = 'none';
+    pieceEl.style.zIndex = 9999;
+    // ghost overlay on board
+    ghost = document.createElement('div'); ghost.className = 'ghost'; gridEl.appendChild(ghost);
+  });
+
+  window.addEventListener('pointermove', e => {
+    if(!dragging) return;
+    pieceEl.style.left = (e.clientX - offsetX) + 'px';
+    pieceEl.style.top  = (e.clientY - offsetY) + 'px';
+    // find closest snapping anchor with valid placement
+    const rect = gridEl.getBoundingClientRect();
+    let best = null, bestDist = Infinity;
+    const shape = preview[index].shape;
+    for(let gx=0; gx<COLS; gx++){
+      for(let gy=0; gy<ROWS; gy++){
+        const cellLeft = rect.left + gx*CELL;
+        const cellTop  = rect.top + (ROWS-1-gy)*CELL;
+        const dx = cellLeft - (e.clientX - offsetX);
+        const dy = cellTop  - (e.clientY - offsetY);
+        const dist = Math.hypot(dx, dy);
+        if(dist < bestDist && canPlace(shape, gx, gy)){
+          bestDist = dist; best = { gx, gy };
+        }
+      }
+    }
+    if(ghost) ghost.innerHTML = '';
+    if(best){
+      // draw ghost tiles in place
+      preview[index].shape.forEach(c => {
+        const s = document.createElement('div'); s.className = 'tile c' + preview[index].color;
+        s.style.opacity = '0.6';
+        s.style.left = ((best.gx + c.x) * CELL) + 'px';
+        s.style.top  = ((ROWS-1-(best.gy + c.y)) * CELL) + 'px';
+        s.style.width = (CELL - 8) + 'px'; s.style.height = (CELL - 8) + 'px';
+        ghost.appendChild(s);
+      });
+    }
+  });
+
+  window.addEventListener('pointerup', e => {
+    if(!dragging) return;
+    dragging = false;
+    try{ pieceEl.releasePointerCapture(e.pointerId); }catch(_){}
+    const rect = gridEl.getBoundingClientRect();
+    let best = null, bestDist = Infinity;
+    const shape = preview[index].shape;
+    for(let gx=0; gx<COLS; gx++){
+      for(let gy=0; gy<ROWS; gy++){
+        const cellLeft = rect.left + gx*CELL;
+        const cellTop  = rect.top + (ROWS-1-gy)*CELL;
+        const dx = cellLeft - (e.clientX - offsetX);
+        const dy = cellTop  - (e.clientY - offsetY);
+        const dist = Math.hypot(dx, dy);
+        if(dist < bestDist && canPlace(shape, gx, gy)){
+          bestDist = dist; best = { gx, gy };
+        }
+      }
+    }
+    if(ghost){ ghost.remove(); ghost = null; }
+    if(best){
+      // place the piece
+      placeShape(shape, best.gx, best.gy, preview[index].color);
+      onPiecePlaced();
+      // advance preview
+      preview.splice(index, 1);
+      preview.push({ shape: randShape(), color: randColor() });
+      renderPreview();
+    } else {
+      // return to preview (reset styles)
+      pieceEl.style.position = '';
+      pieceEl.style.left = '';
+      pieceEl.style.top = '';
+      pieceEl.style.transform = 'translate(-50%,-50%)';
+      pieceEl.style.zIndex = '';
+    }
+  });
+}
+
+/* after placement handling */
+function onPiecePlaced(){
+  // give small coins for placing
+  coins += 1;
+  updateUI();
+
+  const res = checkAndClear();
+  if(res.total > 0){
+    const now = Date.now() / 1000;
+    if(now - lastClearTime <= STREAK_WINDOW) streakCount++; else streakCount = 1;
+    lastClearTime = now;
+    // scoring & coin bonuses
+    let pts = res.total * 100;
+    if(streakCount >= 3){
+      const intensity = streakCount >= 8 ? 3 : (streakCount >= 5 ? 2 : 1);
+      triggerLightning(intensity);
+      if(streakCount >= 5) pts += 25 * (streakCount - 4);
+    }
+    score += pts;
+    coins += res.total * 6;
+    sfx(520 + res.total * 40, 'triangle', 0.12, 0.08);
+  } else {
+    sfx(220, 'sine', 0.05, 0.04);
+  }
+  updateUI();
+  // check game over
+  if(!anyPreviewPlacementValid()) {
+    setTimeout(()=> showGameOver(), 350);
+  }
+}
+
+function anyPreviewPlacementValid(){
+  for(const p of preview) if(anyValidPlacement(p.shape)) return true;
+  return false;
+}
+function anyValidPlacement(shape){
+  for(let x=0;x<COLS;x++){
+    for(let y=0;y<ROWS;y++){
+      if(canPlace(shape, x, y)) return true;
+    }
+  }
+  return false;
+}
+
+/* LIGHTNING effect */
+function triggerLightning(intensity){
+  // flash screen
+  const flash = document.getElementById('flash');
+  flash.style.transition = 'opacity 60ms';
+  flash.style.opacity = 0.8 * (0.4 + 0.2*intensity);
+  setTimeout(()=> { flash.style.transition = 'opacity 280ms'; flash.style.opacity = 0; }, 60);
+  // shake board
+  const wrap = document.querySelector('.board-wrap');
+  const amount = 6 * intensity;
+  wrap.style.transition = 'transform 200ms cubic-bezier(.2,.9,.2,1)';
+  wrap.style.transform = `translate(${(Math.random()*2-1)*amount}px, ${(Math.random()*2-1)*amount}px)`;
+  setTimeout(()=> wrap.style.transform = '', 200);
+  sfx(900 + intensity * 240, 'sawtooth', 0.16, 0.08);
+  // small bolt canvas
+  drawBolts(2 + intensity * 2);
+}
+
+function drawBolts(n){
+  const c = document.createElement('canvas');
+  c.width = gridEl.clientWidth; c.height = gridEl.clientHeight;
+  c.style.position = 'absolute'; c.style.left = '0'; c.style.top = '0'; c.style.zIndex = 90;
+  gridEl.appendChild(c);
+  const ctx = c.getContext('2d'); ctx.globalCompositeOperation = 'lighter';
+  for(let i=0;i<n;i++){
+    const x1 = Math.random()*c.width, y1 = Math.random()*c.height;
+    const x2 = Math.random()*c.width, y2 = Math.random()*c.height;
+    ctx.strokeStyle = `rgba(140,255,255,${0.18 + Math.random()*0.4})`;
+    ctx.lineWidth = 6 + Math.random()*8;
+    ctx.beginPath(); ctx.moveTo(x1,y1);
+    const seg = 4 + Math.floor(Math.random()*6);
+    for(let s=1;s<seg;s++){
+      const t = s/seg;
+      const nx = x1 + (x2-x1)*t + (Math.random()*2-1)*40;
+      const ny = y1 + (y2-y1)*t + (Math.random()*2-1)*40;
+      ctx.lineTo(nx,ny);
+    }
+    ctx.lineTo(x2,y2); ctx.stroke();
+  }
+  setTimeout(()=>{ c.style.transition='opacity 420ms'; c.style.opacity='0'; setTimeout(()=> c.remove(),480); }, 80);
+}
+
+/* UI updates & leaderboard */
+function updateUI(){
+  scoreVal.textContent = score;
+  coinsVal.textContent = coins;
+  bestVal.textContent = Math.max(best, parseInt(localStorage.getItem('bb_best') || 0));
+  saveState();
+}
+
+function saveState(){
+  localStorage.setItem('bb_coins', coins);
+  localStorage.setItem('bb_best', Math.max(best, score, parseInt(localStorage.getItem('bb_best')||0)));
+  localStorage.setItem('bb_score', score);
+  // store unlocked backgrounds in store items as flags
+  STORE_ITEMS.forEach(item => {
+    if(item.unlocked) localStorage.setItem('bg_unlocked_' + item.id, '1');
+  });
+}
+
+function loadState(){
+  coins = parseInt(localStorage.getItem('bb_coins') || 50);
+  best = parseInt(localStorage.getItem('bb_best') || 0);
+  STORE_ITEMS.forEach(item => {
+    item.unlocked = !!localStorage.getItem('bg_unlocked_' + item.id) || !!item.unlocked;
+  });
+}
+
+/* Leaderboard */
+function getLeaderboard(){ return JSON.parse(localStorage.getItem('bb_leaderboard') || '[]'); }
+function addToLeaderboard(name, sc){
+  const list = getLeaderboard();
+  list.push({ name: name || '---', score: sc, when: Date.now() });
+  list.sort((a,b)=> b.score - a.score);
+  if(list.length > 10) list.length = 10;
+  localStorage.setItem('bb_leaderboard', JSON.stringify(list));
+  renderLeaderboard();
+}
+function renderLeaderboard(){
+  const list = getLeaderboard();
+  leaderboardEl.innerHTML = '';
+  list.forEach((e,i) => {
+    const row = document.createElement('div');
+    row.style.display = 'flex'; row.style.justifyContent = 'space-between'; row.style.padding = '6px 0';
+    row.innerHTML = `<div>#${i+1} ${escapeHTML(e.name)}</div><div style="font-weight:800">${e.score}</div>`;
+    leaderboardEl.appendChild(row);
+  });
+}
+function escapeHTML(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* GAME FLOW */
+function restartGame(){
+  score = 0; streakCount = 0; lastClearTime = -999;
+  initGrid(true);
+  initPreview();
+  renderPreview();
+  updateUI();
+  renderLeaderboard();
+}
+
+function showGameOver(){
+  document.getElementById('finalScore').textContent = score;
+  gameOverModal.style.display = 'flex';
+  playerNameInput.value = '';
+}
+
+saveScoreBtn.addEventListener('click', () => {
+  const name = (playerNameInput.value || 'Player').trim().slice(0,20);
+  addToLeaderboard(name, score);
+  gameOverModal.style.display = 'none';
+  restartGame();
+});
+skipSaveBtn.addEventListener('click', () => {
+  gameOverModal.style.display = 'none';
+  restartGame();
+});
+
+/* STORE */
+storeBtn.addEventListener('click', ()=> {
+  buildStoreUI();
+  storeModal.style.display = 'flex';
+});
+closeStore.addEventListener('click', ()=> storeModal.style.display = 'none');
+mockBuyStore.addEventListener('click', ()=> { coins += 200; updateUI(); buildStoreUI(); });
+
+function buildStoreUI(){
+  storeGrid.innerHTML = '';
+  STORE_ITEMS.forEach(item => {
+    const it = document.createElement('div'); it.style.width = '200px'; it.style.height = '110px'; it.style.borderRadius='8px';
+    it.style.padding='8px'; it.style.boxSizing='border-box'; it.style.background = item.css; it.style.display='flex'; it.style.flexDirection='column'; it.style.justifyContent='space-between';
+    const title = document.createElement('div'); title.style.fontWeight='800'; title.textContent = item.name;
+    const footer = document.createElement('div'); footer.style.display='flex'; footer.style.justifyContent='space-between';
+    const cost = document.createElement('div'); cost.textContent = item.cost === 0 ? 'Free' : item.cost + 'c';
+    const btn = document.createElement('button'); btn.className='btn'; btn.textContent = item.unlocked ? 'Apply' : 'Buy';
+    btn.addEventListener('click', ()=> {
+      if(item.unlocked){ applyBackground(item.id); storeModal.style.display = 'none'; }
+      else {
+        if(coins >= item.cost){ coins -= item.cost; item.unlocked = true; localStorage.setItem('bg_unlocked_' + item.id, '1'); applyBackground(item.id); updateUI(); buildStoreUI(); }
+        else alert('Not enough coins. Use Mock Buy to add test coins.');
+      }
+    });
+    footer.appendChild(cost); footer.appendChild(btn);
+    it.appendChild(title); it.appendChild(footer);
+    storeGrid.appendChild(it);
+  });
+}
+
+function applyBackground(id){
+  const item = STORE_ITEMS.find(b=>b.id === id);
+  if(!item) return;
+  document.documentElement.style.setProperty('--bg-default', item.css);
+  document.body.style.background = item.css;
+  storeModal.style.display = 'none';
+}
+
+/* INIT + START */
+startBtn.addEventListener('click', ()=> start(true));
+startNoAudioBtn.addEventListener('click', ()=> start(false));
+
+function start(enableSound){
+  soundEnabled = !!enableSound;
+  if(soundEnabled) initAudio();
+  // hide overlay, show game root
+  startOverlay.style.display = 'none';
+  gameRoot.style.display = 'flex';
+  // load saved state and init game components
+  loadState();
+  initGrid(true);
+  initPreview();
+  renderPreview();
+  updateUI();
+  renderLeaderboard();
+  // wire other buttons
+  mockBuy.addEventListener('click', ()=> { coins += 100; updateUI(); });
+  clearSaveBtn.addEventListener('click', ()=> {
+    if(!confirm('Clear saved data?')) return;
+    localStorage.clear(); location.reload();
+  });
+  restartBtn.addEventListener('click', ()=> { if(confirm('Restart game?')) restartGame(); });
+  rotateAllBtn.addEventListener('click', ()=> { if(preview[0]){ preview[0].shape = rotate90(preview[0].shape); renderPreview(); } });
+}
+
+/* Misc helpers */
+function drawGridGuides(){
+  // optional: draws faint grid lines for aesthetics (not necessary)
+}
+
+/* On load: nothing runs until start button pressed */
+window.addEventListener('load', ()=> {
+  // pre-fill store unlocked flags from localStorage
+  STORE_ITEMS.forEach(i => { i.unlocked = i.unlocked || !!localStorage.getItem('bg_unlocked_' + i.id); });
+});
+
+/* Expose simple restart for debugging */
+window.bb_restart = restartGame;
+
+</script>
+</body>
+</html>

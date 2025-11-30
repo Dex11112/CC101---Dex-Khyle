@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>VIVAMAX COMPANY</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg-a:#0f1724;
+      --bg-b:#061426;
+      --card:#ffffff;
+      --muted:rgba(255,255,255,0.75);
+      --accent:#5eead4;
+      --glass:rgba(255,255,255,0.06);
+      --shadow:0 6px 24px rgba(2,6,23,0.6);
+      --radius:14px;
+    }
+
+    html,body{
+      height:100%;
+      margin:0;
+      font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      color:var(--muted);
+      background:linear-gradient(160deg,var(--bg-a),var(--bg-b));
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+
+    canvas#bg {
+      position:fixed;
+      inset:0;
+      width:100%;
+      height:100%;
+      display:block;
+      z-index:0;
+      pointer-events:none;
+    }
+
+    header{
+      position:relative;
+      z-index:2;
+      padding:64px 24px 24px;
+      text-align:center;
+      color:#f8fafc;
+      mix-blend-mode:normal;
+    }
+
+    header h1{
+      margin:0;
+      font-size:clamp(28px,4vw,48px);
+      letter-spacing:1px;
+      font-weight:800;
+      color:linear-gradient(90deg,#fff,#e6f9f0);
+    }
+
+    header p{
+      margin:8px 0 0;
+      color:var(--muted);
+      font-weight:500;
+      letter-spacing:0.6px;
+    }
+
+    nav{
+      position:relative;
+      z-index:2;
+      display:flex;
+      gap:12px;
+      justify-content:center;
+      margin:18px 12px;
+      flex-wrap:wrap;
+    }
+
+    nav a, nav button{
+      background:transparent;
+      color:var(--muted);
+      text-decoration:none;
+      margin:0 4px;
+      border:1px solid rgba(255,255,255,0.06);
+      padding:10px 16px;
+      border-radius:999px;
+      font-size:14px;
+      transition:all .25s ease;
+      cursor:pointer;
+    }
+
+    nav a:focus, nav button:focus, nav a:hover, nav button:hover{
+      transform:translateY(-3px);
+      box-shadow:0 8px 20px rgba(7,11,26,0.6);
+      color:#e6fff6;
+      border-color:rgba(94,234,212,0.18);
+      outline:none;
+    }
+
+    main{
+      position:relative;
+      z-index:2;
+      max-width:1100px;
+      margin:28px auto;
+      padding:28px;
+    }
+
+    .panel{
+      background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:26px;
+      backdrop-filter:blur(8px) saturate(120%);
+      display:grid;
+      grid-template-columns:1fr 360px;
+      gap:22px;
+      align-items:start;
+    }
+
+    @media (max-width:880px){
+      .panel{grid-template-columns:1fr; padding:18px;}
+      .right-col{order:2}
+    }
+
+    .hero{
+      color:#e6fff6;
+    }
+
+    .hero h2{
+      margin:0 0 8px;
+      font-size:clamp(20px,3.6vw,34px);
+      font-weight:700;
+    }
+
+    .hero p{margin:0 0 18px; color:var(--muted); line-height:1.5}
+
+    .controls{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-bottom:12px;
+    }
+
+    .controls button{
+      background:linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+      border:1px solid rgba(255,255,255,0.05);
+      color:var(--muted);
+      padding:8px 12px;
+      border-radius:10px;
+      cursor:pointer;
+      transition:all .18s ease;
+    }
+
+    .controls button[aria-pressed="true"]{
+      background:linear-gradient(90deg, rgba(94,234,212,0.12), rgba(94,234,212,0.06));
+      color:#00332a;
+      border-color:rgba(94,234,212,0.3);
+      box-shadow:0 8px 30px rgba(6,17,14,0.35);
+      transform:translateY(-3px);
+    }
+
+    .feature{
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:12px;
+      padding:18px;
+      color:var(--muted);
+    }
+
+    .feature h3{
+      margin:0 0 8px;
+      color:#e6fff6;
+      font-size:18px;
+    }
+
+    .feature p{margin:0 0 12px; line-height:1.5}
+
+    .feature .list{
+      display:grid;
+      gap:8px;
+    }
+
+    .right-col{
+      background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      padding:18px;
+      border-radius:12px;
+      color:var(--muted);
+    }
+
+    .service-grid{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:12px;
+    }
+
+    @media (max-width:540px){
+      .service-grid{grid-template-columns:1fr}
+    }
+
+    .service{
+      background:var(--glass);
+      padding:12px;
+      border-radius:10px;
+      color:var(--muted);
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    .cta{
+      display:flex;
+      gap:8px;
+      margin-top:12px;
+    }
+
+    .btn{
+      padding:10px 14px;
+      border-radius:10px;
+      border:none;
+      cursor:pointer;
+      font-weight:600;
+    }
+
+    .btn-primary{
+      background:linear-gradient(90deg,var(--accent),#34d399);
+      color:#04251f;
+      box-shadow:0 8px 26px rgba(46,204,157,0.15);
+    }
+
+    .btn-ghost{
+      background:transparent;
+      border:1px solid rgba(255,255,255,0.06);
+      color:var(--muted);
+    }
+
+    .sample-block{
+      margin-top:12px;
+      font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;
+      background:rgba(2,6,23,0.6);
+      padding:14px;
+      border-radius:10px;
+      color:#bfeee0;
+      font-size:14px;
+      line-height:1.45;
+      white-space:pre-wrap;
+    }
+
+    samp{
+      display:inline-block;
+      color:#bfeee0;
+    }
+
+    .cursor{
+      display:inline-block;
+      width:8px;
+      height:16px;
+      background:var(--accent);
+      margin-left:6px;
+      vertical-align:middle;
+      animation:blink 1.2s steps(2,end) infinite;
+      border-radius:2px;
+    }
+
+    @keyframes blink{
+      50%{opacity:0}
+    }
+
+    footer{
+      margin-top:28px;
+      text-align:center;
+      color:var(--muted);
+      font-size:13px;
+      opacity:0.9;
+    }
+
+    .theme-pill{
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      padding:8px 12px;
+      border-radius:999px;
+      background:rgba(255,255,255,0.02);
+      border:1px solid rgba(255,255,255,0.03);
+      cursor:pointer;
+    }
+
+    .theme-dot{
+      width:12px;height:12px;border-radius:50%;
+    }
+
+    .sr-only{
+      position:absolute;
+      width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="bg" aria-hidden="true"></canvas>
+
+  <header>
+    <h1>VIVAMAX COMPANY</h1>
+    <p>Helping your business grow with modern strategy and technology</p>
+  </header>
+
+  <nav>
+    <a href="#about">About</a>
+    <a href="#features">Featured</a>
+    <a href="#contact">Contact</a>
+    <button id="themeToggle" class="theme-pill" aria-pressed="false" aria-label="Change background theme">
+      <span id="themeDot" class="theme-dot" style="background:linear-gradient(180deg,#3ee7c6,#057a52)"></span>
+      <span style="font-size:13px;color:var(--muted);">Theme</span>
+    </button>
+    <button id="soundToggle" class="theme-pill" aria-pressed="false" aria-label="Toggle sound">
+      <svg id="soundIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M11 5L6 9H2v6h4l5 4V5z" fill="currentColor" opacity="0.9"/><path d="M19 9a4 4 0 010 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      <span style="font-size:13px;color:var(--muted);">Sound</span>
+    </button>
+  </nav>
+
+  <main>
+    <section id="about" class="panel" aria-labelledby="about-title">
+      <div>
+        <div class="hero">
+          <h2 id="about-title">About Us</h2>
+          <p>We deliver end-to-end solutions combining strategy, marketing, and technology. Our work is focused on measurable growth, delightful experiences, and reliable systems.</p>
+          <div class="controls" role="tablist" aria-label="Choose featured">
+            <button role="tab" aria-selected="true" data-feature="consulting">Consulting</button>
+            <button role="tab" aria-selected="false" data-feature="marketing">Marketing</button>
+            <button role="tab" aria-selected="false" data-feature="tech">Tech Solutions</button>
+            <button role="tab" aria-selected="false" data-feature="portfolio">Portfolio</button>
+          </div>
+
+          <div id="features" class="feature" aria-live="polite">
+            <h3 id="feature-title">Consulting</h3>
+            <p id="feature-desc">Strategic business consulting focused on revenue growth, operational efficiency, and leadership alignment.</p>
+            <div class="list" id="feature-list">
+              <div>Business model audits and growth roadmaps</div>
+              <div>Operational process automation recommendations</div>
+              <div>Data-driven KPI setup and reporting</div>
+            </div>
+          </div>
+
+          <div class="cta">
+            <button class="btn btn-primary" id="contactBtn">Get a Free Strategy Call</button>
+            <button class="btn btn-ghost" id="downloadBtn">Download One-Pager</button>
+          </div>
+
+          <div class="sample-block" role="status" aria-atomic="true">
+            <div style="opacity:0.9">Message from my computer:</div>
+            <div style="margin-top:8px"><samp>File not found.
+Press F1 to continue</samp><span class="cursor" aria-hidden="true"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="right-col" aria-labelledby="contact-title">
+        <h3 id="contact-title" style="margin-top:0;color:#e6fff6">Contact</h3>
+        <div class="service-grid" role="list">
+          <div class="service" role="listitem">
+            <strong>Office</strong>
+            <div style="font-size:13px;color:var(--muted)">TUMOY SA BALAY, Country</div>
+          </div>
+          <div class="service" role="listitem">
+            <strong>Email</strong>
+            <div style="font-size:13px;color:var(--muted)">vivamax@yourbusiness.com</div>
+          </div>
+          <div class="service" role="listitem">
+            <strong>Phone</strong>
+            <div style="font-size:13px;color:var(--muted)">099951179108</div>
+          </div>
+          <div class="service" role="listitem">
+            <strong>Hours</strong>
+            <div style="font-size:13px;color:var(--muted)">Mon-Fri 9:00 - 18:00</div>
+          </div>
+        </div>
+
+        <form id="contactForm" style="margin-top:14px;display:flex;flex-direction:column;gap:10px" onsubmit="return false" aria-label="Contact form">
+          <input id="name" name="name" placeholder="Your name" style="padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.05);background:rgba(0,0,0,0.3);color:var(--muted)" />
+          <input id="email" name="email" placeholder="Email address" style="padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.05);background:rgba(0,0,0,0.3);color:var(--muted)" />
+          <textarea id="message" name="message" rows="3" placeholder="Message" style="padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.05);background:rgba(0,0,0,0.3);color:var(--muted)"></textarea>
+          <button class="btn btn-primary" id="send">Send</button>
+        </form>
+      </aside>
+    </section>
+
+    <footer>
+      © 2025 VIVAMAX COMPANY. All rights reserved.
+    </footer>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('bg');
+    const ctx = canvas.getContext('2d');
+    let w = canvas.width = innerWidth;
+    let h = canvas.height = innerHeight;
+    const particles = [];
+    const colors = [
+      'rgba(94,234,212,0.06)',
+      'rgba(174,238,255,0.05)',
+      'rgba(255,255,255,0.03)'
+    ];
+
+    function rand(min,max){return Math.random()*(max-min)+min}
+
+    function createParticles(count=60){
+      particles.length = 0;
+      for(let i=0;i<count;i++){
+        particles.push({
+          x:rand(0,w),
+          y:rand(0,h),
+          vx:rand(-0.2,0.2),
+          vy:rand(-0.1,0.4),
+          r:rand(10,60),
+          color:colors[Math.floor(Math.random()*colors.length)],
+          angle:rand(0,Math.PI*2),
+          spin:rand(-0.001,0.001)
+        });
+      }
+    }
+
+    function resize(){
+      w = canvas.width = innerWidth;
+      h = canvas.height = innerHeight;
+      createParticles(Math.max(40, Math.floor((w*h)/100000)));
+    }
+
+    addEventListener('resize', resize);
+    resize();
+
+    function draw(){
+      ctx.clearRect(0,0,w,h);
+
+      const grd = ctx.createLinearGradient(0,0,w,h);
+      grd.addColorStop(0,'rgba(6,20,40,0.65)');
+      grd.addColorStop(1,'rgba(3,10,20,0.5)');
+      ctx.fillStyle = grd;
+      ctx.fillRect(0,0,w,h);
+
+      for(const p of particles){
+        p.x += p.vx;
+        p.y += p.vy;
+        p.angle += p.spin;
+        if(p.x - p.r > w) p.x = -p.r;
+        if(p.x + p.r < -p.r) p.x = w + p.r;
+        if(p.y - p.r > h) p.y = -p.r;
+        if(p.y + p.r < -p.r) p.y = h + p.r;
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.ellipse(0,0,p.r*1.4,p.r,0,0,Math.PI*2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.restore();
+      }
+
+      requestAnimationFrame(draw);
+    }
+
+    requestAnimationFrame(draw);
+
+    document.querySelectorAll('[role="tab"]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        document.querySelectorAll('[role="tab"]').forEach(b=>b.setAttribute('aria-selected','false'));
+        btn.setAttribute('aria-selected','true');
+        const key = btn.dataset.feature;
+        updateFeature(key);
+        playClick();
+      });
+    });
+
+    function updateFeature(key){
+      const title = document.getElementById('feature-title');
+      const desc = document.getElementById('feature-desc');
+      const list = document.getElementById('feature-list');
+      if(key==='consulting'){
+        title.textContent = 'Consulting';
+        desc.textContent = 'Strategic business consulting focused on revenue growth, operational efficiency, and leadership alignment.';
+        list.innerHTML = '<div>Business model audits and growth roadmaps</div><div>Operational process automation recommendations</div><div>Data-driven KPI setup and reporting</div>';
+      } else if(key==='marketing'){
+        title.textContent = 'Marketing';
+        desc.textContent = 'Growth marketing that blends creative campaigns, data, and automation to scale customer acquisition.';
+        list.innerHTML = '<div>Performance ad campaigns and optimization</div><div>Content and SEO strategy</div><div>Email & conversion funnel design</div>';
+      } else if(key==='tech'){
+        title.textContent = 'Tech Solutions';
+        desc.textContent = 'Modern engineering, integrations, and platform architecture to ship products fast and reliably.';
+        list.innerHTML = '<div>Product architecture and cloud strategy</div><div>APIs, integrations, and automation</div><div>Maintenance, monitoring, and SRE practices</div>';
+      } else if(key==='portfolio'){
+        title.textContent = 'Portfolio';
+        desc.textContent = 'Selected case studies showing measurable outcomes for clients across industries.';
+        list.innerHTML = '<div>50% ARR growth for a SaaS client in 9 months</div><div>3x conversion boost for an e-commerce brand</div><div>Automated ops saving 350 engineer hours/month</div>';
+      }
+    }
+
+    document.getElementById('themeToggle').addEventListener('click', ()=>{
+      const btn = document.getElementById('themeToggle');
+      const dot = document.getElementById('themeDot');
+      const pressed = btn.getAttribute('aria-pressed') === 'true';
+      if(!pressed){
+        btn.setAttribute('aria-pressed','true');
+        dot.style.background = 'linear-gradient(180deg,#7c5cff,#00c2ff)';
+        document.documentElement.style.setProperty('--bg-a','#061226');
+        document.documentElement.style.setProperty('--bg-b','#0b1530');
+        document.documentElement.style.setProperty('--accent','#7c5cff');
+        createParticles(Math.max(40, Math.floor((w*h)/90000)));
+      } else {
+        btn.setAttribute('aria-pressed','false');
+        dot.style.background = 'linear-gradient(180deg,#3ee7c6,#057a52)';
+        document.documentElement.style.setProperty('--bg-a','#0f1724');
+        document.documentElement.style.setProperty('--bg-b','#061426');
+        document.documentElement.style.setProperty('--accent','#5eead4');
+        createParticles(Math.max(40, Math.floor((w*h)/100000)));
+      }
+      playClick();
+    });
+
+    document.getElementById('contactBtn').addEventListener('click', ()=>{
+      document.getElementById('name').focus();
+      window.location.hash = '#contact';
+      playClick();
+    });
+
+    document.getElementById('downloadBtn').addEventListener('click', ()=>{
+      const blob = new Blob([`VIVAMAX one-pager\n\nServices:\n- Consulting\n- Marketing\n- Tech Solutions\n\nContact: vivamax@yourbusiness.com`], {type:'text/plain'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'vivamax-one-pager.txt';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      playClick();
+    });
+
+    document.getElementById('send').addEventListener('click', ()=>{
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const message = document.getElementById('message').value.trim();
+      if(!name || !email || !message){
+        alert('Please fill name, email, and message.');
+        playError();
+        return;
+      }
+      alert('Thanks, ' + name + '! This demo does not submit but your message is ready.');
+      document.getElementById('contactForm').reset();
+      playSuccess();
+    });
+
+    document.querySelectorAll('a[href^="#"]').forEach(anchor=>{
+      anchor.addEventListener('click', function(e){
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if(target) target.scrollIntoView({behavior:'smooth',block:'start'});
+      });
+    });
+
+    window.addEventListener('keydown', (e)=>{
+      if(e.key==='F1'){
+        e.preventDefault();
+        showHelp();
+      }
+    });
+
+    function showHelp(){
+      alert('Help:\nContact us at vivamax@yourbusiness.com');
+      playBeep();
+    }
+
+    window.addEventListener('focus', ()=>{ createParticles(Math.max(40, Math.floor((w*h)/100000))); });
+
+    // Audio system using Web Audio API, starts only after user enables sound (user gesture)
+    let audioCtx = null;
+    let sfxGain = null;
+    let ambientGain = null;
+    let ambientNodes = null;
+    let soundEnabled = false;
+
+    function initAudio(){
+      if(audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      sfxGain = audioCtx.createGain();
+      sfxGain.gain.value = 0.95;
+      sfxGain.connect(audioCtx.destination);
+      ambientGain = audioCtx.createGain();
+      ambientGain.gain.value = 0.0;
+      ambientGain.connect(audioCtx.destination);
+
+      const oscA = audioCtx.createOscillator();
+      const oscB = audioCtx.createOscillator();
+      const gainA = audioCtx.createGain();
+      const gainB = audioCtx.createGain();
+      oscA.type = 'sine';
+      oscB.type = 'sine';
+      oscA.frequency.value = 110;
+      oscB.frequency.value = 220;
+      gainA.gain.value = 0.02;
+      gainB.gain.value = 0.01;
+      oscA.connect(gainA);
+      oscB.connect(gainB);
+      gainA.connect(ambientGain);
+      gainB.connect(ambientGain);
+      oscA.start();
+      oscB.start();
+      ambientNodes = {oscA, oscB, gainA, gainB};
+    }
+
+    function enableSound(yes){
+      if(yes){
+        initAudio();
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        ambientGain.gain.cancelScheduledValues(audioCtx.currentTime);
+        ambientGain.gain.linearRampToValueAtTime(0.06, audioCtx.currentTime + 0.6);
+        soundEnabled = true;
+      } else {
+        if(audioCtx){
+          ambientGain.gain.cancelScheduledValues(audioCtx.currentTime);
+          ambientGain.gain.linearRampToValueAtTime(0.0, audioCtx.currentTime + 0.3);
+        }
+        soundEnabled = false;
+      }
+      updateSoundButton();
+    }
+
+    function updateSoundButton(){
+      const btn = document.getElementById('soundToggle');
+      btn.setAttribute('aria-pressed', soundEnabled ? 'true' : 'false');
+      const icon = document.getElementById('soundIcon');
+      if(soundEnabled){
+        icon.style.opacity = '1';
+      } else {
+        icon.style.opacity = '0.45';
+      }
+    }
+
+    function playOsc(frequency, time=0, length=0.14, type='sine', gain=0.12){
+      if(!audioCtx) return;
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = type;
+      o.frequency.value = frequency;
+      g.gain.setValueAtTime(0.0001, audioCtx.currentTime + time);
+      g.gain.exponentialRampToValueAtTime(gain, audioCtx.currentTime + time + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + time + length);
+      o.connect(g);
+      g.connect(sfxGain);
+      o.start(audioCtx.currentTime + time);
+      o.stop(audioCtx.currentTime + time + length + 0.02);
+    }
+
+    function playClick(){
+      if(!soundEnabled) return;
+      playOsc(700, 0, 0.10, 'square', 0.08);
+    }
+
+    function playBeep(){
+      if(!soundEnabled) return;
+      playOsc(880, 0, 0.35, 'sine', 0.14);
+      setTimeout(()=>playOsc(1320, 0.12, 0.2, 'sine', 0.10), 60);
+    }
+
+    function playSuccess(){
+      if(!soundEnabled) return;
+      playOsc(800, 0, 0.18, 'sine', 0.10);
+      setTimeout(()=>playOsc(1200, 0, 0.12, 'sine', 0.08), 120);
+    }
+
+    function playError(){
+      if(!soundEnabled) return;
+      playOsc(220, 0, 0.18, 'sawtooth', 0.14);
+      setTimeout(()=>playOsc(160, 0.06, 0.12, 'sawtooth', 0.08), 80);
+    }
+
+    document.getElementById('soundToggle').addEventListener('click', ()=>{
+      const next = !soundEnabled;
+      enableSound(next);
+      playClick();
+    });
+
+    ['click','keydown','touchstart'].forEach(evt=>{
+      window.addEventListener(evt, function onFirstGesture(e){
+        if(audioCtx === null) {
+          initAudio();
+          audioCtx.suspend(); 
+        }
+        window.removeEventListener(evt, onFirstGesture);
+      }, {passive:true});
+    });
+
+    updateSoundButton();
+  </script>
+</body>
+</html>
